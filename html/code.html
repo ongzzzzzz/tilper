@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>tilper</title>
+<!-- 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/necolas/normalize.css/normalize.css"> -->
+<!-- 		<link rel="stylesheet" href="https://gist.githubusercontent.com/DavidWells/18e73022e723037a50d6/raw/31b030534440f31f3ddcd72c4916cc47eb1be520/reset.css"> -->
+		<link rel="stylesheet" href="css/code.css">
+		
+		<script language="javascript" type="text/javascript" src="https://codemirror.net/lib/codemirror.js"></script>
+		<script language="javascript" type="text/javascript" src="https://codemirror.net/mode/meta.js"></script>
+		<script language="javascript" type="text/javascript" src="https://codemirror.net/addon/mode/loadmode.js"></script>
+		<link rel="stylesheet" type="text/css" href="https://codemirror.net/lib/codemirror.css"></link>
+
+		<!-- 	configurations	 -->
+		<link rel="stylesheet" type="text/css" href="https://codemirror.net/theme/oceanic-next.css"></link>
+		<script language="javascript" type="text/javascript" src="https://codemirror.net/mode/python/python.js"></script>
+		<script language="javascript" type="text/javascript" src="https://codemirror.net/mode/javascript/javascript.js"></script>
+		<script language="javascript" type="text/javascript" src="https://codemirror.net/mode/clike/clike.js"></script>
+	</head>
+	<body>
+		<div id="top-bar">
+			<div id="tilper">
+				<span>tilper</span>
+				<select name="langs" id="langs" onchange="onLangSelect();" onfocus="this.selectedIndex = -1;"></select>
+			</div>
+			<div id="controls">
+				<button onclick="runCode(event)" id="run">Run</button>
+			</div>
+			<div id="empty"></div>
+			
+		</div>
+		<div id="main">
+			<div id="code-area">
+				<textarea id="code" autofocus></textarea>
+			</div>
+			<div id="out-area">
+				<button id="clear">X</button>
+				<div id="output"></div>
+			</div>
+		</div>
+		
+
+<script>
+let langSelect = document.getElementById("langs");
+let codeDiv = document.getElementById("code");
+let outputDiv = document.getElementById("output");
+let runBtn = document.getElementById("run");
+let clearBtn = document.getElementById("clear");
+
+let editor = CodeMirror.fromTextArea(codeDiv, {
+    lineNumbers: true,
+    theme: 'oceanic-next',
+});
+editor.setSize("100%", "100%");
+
+let exts = {};
+async function renderLangSelect() {
+	let langRes = await fetch("/api");
+	let langs = await langRes.json();	
+
+	Object.keys(langs).forEach(l => {
+		let opt = document.createElement("option");
+		opt.appendChild( document.createTextNode(l) );
+		opt.value = l;
+		langSelect.appendChild(opt);
+	});
+
+	exts = langs;
+}
+renderLangSelect();
+
+function onLangSelect(e){
+	let info = CodeMirror.findModeByExtension(exts[langSelect.value]);
+	// console.log(info);
+
+	editor.setOption("mode", info.mime);
+	CodeMirror.autoLoadMode(editor, info.mode);
+}
+
+async function runCode(e) {
+	e.preventDefault();
+	
+	let userCode = {
+		lang: langSelect.value,
+		code: editor.getValue(),
+	};
+
+	outputDiv.innerHTML = "code running... owo";
+	fetch("/api", {
+		method: "POST", 
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(userCode),
+	})
+	.then(req => req.json())
+	.then(json => {
+		let output = decodeURIComponent(json.output);
+		// console.log(output)
+		if (!json.error) {
+			outputDiv.innerHTML = output;
+		}
+		else {
+			// console.log(output);
+			outputDiv.innerHTML = `Error occured:\n${output}`;
+		}
+	})
+	.catch(e => {
+		console.log("replit lagging, retrying T.T")
+		runBtn.click();
+	});
+}
+
+clearBtn.addEventListener("click", () => outputDiv.innerHTML = "");
+</script>
+	</body>
+</html>
